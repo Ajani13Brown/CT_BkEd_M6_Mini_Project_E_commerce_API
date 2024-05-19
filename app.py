@@ -23,7 +23,7 @@ from sqlalchemy import select, delete
 
 app = Flask(__name__) #creating and instance of our flask app
                                                                 #user pw     host      db
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:BAC146@localhost/ecomm_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:Rwbybrown%404547@localhost/ecomm_db2'
 
 class Base(DeclarativeBase):
     pass
@@ -202,7 +202,57 @@ def add_product():
 
     return jsonify({"Messages": "New Product added!"}), 201
 
+@app.route("/products", methods=['GET'])
+def get_products():
+    query = select(Products)
+    result = db.session.execute(query).scalars() 
+    products = result.all() 
+    return products_schema.jsonify(products)
 
+@app.route("/products/<int:id>", methods=['GET'])
+def get_product(id):
+    
+    query = select(Products).filter(Products.id == id)
+    result = db.session.execute(query).scalars().first()
+
+    if result is None:
+        return jsonify({"Error": "Product not found"}), 404
+    
+    return product_schema.jsonify(result)
+
+@app.route("/products/<int:id>", methods=['PUT'])
+def update_product(id):
+
+    query = select(Products).where(Products.id == id)
+    result = db.session.execute(query).scalars().first()
+    if result is None:
+        return jsonify({"Error": "Product not found"}), 404
+    
+    product = result
+    
+    try:
+        product_data = product_schema.load(request.json)
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+    
+    for field, value in product_data.items():
+        setattr(product, field, value)
+
+    db.session.commit()
+    return jsonify({"Message": "Product details have been updated!"})
+
+
+@app.route("/products/<int:id>", methods=['DELETE'])
+def delete_product(id):
+    query = delete(Products).filter(Products.id == id)
+
+    result = db.session.execute(query)
+
+    if result.rowcount == 0:
+        return jsonify({'Error': 'Product not found'}), 404
+    
+    db.session.commit()
+    return jsonify({"Message": "Product removed Successfully!"}), 200
 
 #====================Order Operations================================
 
@@ -244,6 +294,15 @@ def order_items(id):
     order = db.session.execute(query).scalar()
     return products_schema.jsonify(order.products)
 
+@app.route("/order_track/<int:id>", methods=['GET'])
+def order_track(id):
+    query = select(Orders).filter(Orders.id == id)
+    order = db.session.execute(query).scalar()
+
+    if order is None:
+        return jsonify({"error": "Order not found"}), 404
+    
+    return order_schema.jsonify(order)
 
 
 
